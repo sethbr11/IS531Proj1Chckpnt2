@@ -173,7 +173,6 @@ resource "aws_security_group" "db_security_group" {
 
 /***********
 EC2 Instance Configuration
-Create/Configure the web and database server instances
 ************/
 
 # EC2 INSTANCE FOR WEB SERVER
@@ -184,16 +183,7 @@ resource "aws_instance" "donutws" {
   subnet_id    = aws_subnet.donuteast2a_public_sn.id 
   security_groups = [aws_security_group.web_security_group.id] 
   tags = { Name = "Web Server" } 
-
-  # Install Apache and start the service
-  user_data = <<-EOF
-              #!/bin/bash
-              yum update -y
-              yum install -y httpd
-              systemctl start httpd
-              systemctl enable httpd
-              echo "<h1>Deployed via Terraform</h1>" | tee /var/www/html/index.html
-  EOF
+  # TO ADD: USE GOLDEN IMAGE
 } 
 
 # ELASTIC IP FOR WEB SERVER
@@ -201,24 +191,20 @@ resource "aws_eip" "elastic_ip" {
   vpc = true 
 } 
 
-# EC2 INSTANCE FOR DATABASE SERVER
-resource "aws_instance" "donutdb" { 
-  ami           = "ami-00dfe2c7ce89a450b" # Amazon Linux 2023 AMI
-  instance_type = "t2.micro" 
-  key_name     = "pdcserverkey" 
-  subnet_id    = aws_subnet.donuteast2b_private_sn.id 
-  security_groups = [aws_security_group.db_security_group.id] 
-  tags = { Name = "Database Server" } 
+/***********
+RDS Configuration
+************/
 
-  # Install MySQL and start the service
-  user_data = <<-EOF
-              #!/bin/bash
-              wget https://dev.mysql.com/get/mysql80-community-release-el9-1.noarch.rpm 
-              dnf install mysql80-community-release-el9-1.noarch.rpm -y
-              rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
-              dnf install mysql-community-client -y
-              dnf install mysql-community-server -y
-              systemctl start mysqld
-              systemctl enable mysqld
-  EOF
-} 
+# RDS INSTANCE
+resource "aws_db_instance" "donutdb" { 
+  allocated_storage    = 20 
+  storage_type         = "gp2" 
+  engine               = "mysql" 
+  engine_version       = "5.7" 
+  instance_class       = "db.t2.micro"
+  username             = "admin" 
+  password             = "password" 
+  db_subnet_group_name = "default" 
+  vpc_security_group_ids = [aws_security_group.db_security_group.id] 
+  tags = { Name = "donutdb" } 
+}
